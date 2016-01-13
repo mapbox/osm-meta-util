@@ -21,7 +21,7 @@ function MetaUtil(opts) {
     this.delay = (opts.delay || 60000);
     this.initialized = true;
 
-    this.baseURL = opts.baseURL || 'http://planet.osm.org/replication/changesets';
+    this.baseURL = opts.baseURL || 'http://planet.osm.org/replication/hour'; // 001/000.osc.gz -> 029/077.osc.gz
     this._changesetAttrs = {};
     this.started = false;
 }
@@ -60,10 +60,11 @@ MetaUtil.prototype.run = function() {
     }
 
     var parserEnd = function(name, attrs) {
-        if (name === 'changeset') {
-            that.push(new Buffer(JSON.stringify(that._changesetAttrs) + '\n'), 'utf8');
+        if (name === 'node') { //only dealing with nodes, not ways
+            that.push(new Buffer(JSON.stringify(that._nodeAttrs) + '\n'), 'utf8');
+            that._nodeAttrs = null;
         }
-        if (name === 'osm') {
+        if (name === 'osmChange') {
           queueNext();
           if (!that.liveMode && that.diff === 0) {
               that.push(null);
@@ -72,13 +73,17 @@ MetaUtil.prototype.run = function() {
     };
 
     var parserStart = function(name, attrs) {
-        if (name === 'changeset') {
+        if (name === 'create' || name === 'modify' || name === 'delete') {
             if (attrs) {
-                that._changesetAttrs = attrs;
+                that._action = name;
             }
         }
-        if (name === 'tag' && that._changesetAttrs && that._changesetAttrs.open === 'false') {
-            that._changesetAttrs[attrs.k] = attrs.v;
+        if (name === 'node') { //just managing nodes for now
+            that._nodeAttrs = attrs;
+            that._nodeAttrs['action'] = that._action;
+        }    
+        if (name === 'tag' && that._nodeAttrs) {
+            that._nodeAttrs[attrs.k] = attrs.v; // could override attributes
         }
     };
 
@@ -101,12 +106,12 @@ MetaUtil.prototype.run = function() {
         xmlParser.on('endElement', parserEnd);
 
         //Get YAML state file
-        request.get('http://planet.osm.org/replication/changesets/state.yaml',
+        request.get(this.baseURL + '/state.txt',
             function(err, response, body) {
                 var nodata = true;
                 //If YAML state is bigger, we can get a new file
-                if (Number(body.substr(body.length - 8)) >= that.state) {
-                    var ss = request.get(that.baseURL + url.split('').reverse().join('') + '.osm.gz')
+                if (true || Number(body.substr(body.length - 8)) >= that.state) { //need to parse state.txt
+                    var ss = request.get(that.baseURL + url.split('').reverse().join('') + '.osc.gz')
                         .pipe(zlib.createUnzip())
                         .on('data', function(data) {
                           nodata = (data.length === 0) && nodata;
