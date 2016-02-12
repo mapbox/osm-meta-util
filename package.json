@@ -27,7 +27,11 @@
   "homepage": "https://github.com/osmlab/osm-meta-util",
   "dependencies": {
     "node-expat": "^2.3.5",
-    "request": "^2.53.0"
+    "request": "^2.53.0",
+    "osmreplication": "1.0.1"
+  },
+  "engines": {
+    "node": "0.10.40"
   },
   "devDependencies": {
       "through": "^2.3.6"

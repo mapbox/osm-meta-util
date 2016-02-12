@@ -21,6 +21,9 @@ function MetaUtil(opts) {
     this.delay = (opts.delay || 60000);
     this.initialized = true;
 
+    this.start_timestamp = opts.start_timestamp;
+    this.end_timestamp = opts.end_timestamp;
+
     this.baseURL = opts.baseURL || 'http://planet.osm.org/replication/hour'; // 001/000.osc.gz -> 029/077.osc.gz
     this._changesetAttrs = {};
     this.started = false;
@@ -60,9 +63,12 @@ MetaUtil.prototype.run = function() {
     }
 
     var parserEnd = function(name, attrs) {
-        if (name === 'node') { //only dealing with nodes, not ways
-            that.push(new Buffer(JSON.stringify(that._nodeAttrs) + '\n'), 'utf8');
-            that._nodeAttrs = null;
+        if (name === 'node' || name === 'way') {
+            var push = true;
+            if (that.start_timestamp && that.start_timestamp > that._attrs.timestamp) push = false;
+            if (that.end_timestamp && that.end_timestamp < that._attrs.timestamp) push = false;
+            if (push) that.push(new Buffer(JSON.stringify(that._attrs) + '\n'), 'utf8');
+            that._attrs = null;
         }
         if (name === 'osmChange') {
           queueNext();
@@ -79,11 +85,19 @@ MetaUtil.prototype.run = function() {
             }
         }
         if (name === 'node') { //just managing nodes for now
-            that._nodeAttrs = attrs;
-            that._nodeAttrs['action'] = that._action;
-        }    
-        if (name === 'tag' && that._nodeAttrs) {
-            that._nodeAttrs[attrs.k] = attrs.v; // could override attributes
+            that._attrs = attrs;
+            that._attrs['action'] = that._action;
+            that._attrs['type'] = 'node';
+        }
+        if (name === 'way') {
+            that._attrs = attrs;
+            that._attrs['actions'] = that._action;
+            that._attrs['type'] = 'way';
+        }
+        if (name === 'tag' && that._attrs) {
+            //FIX so that osm properties in namespace
+            if (! that._attrs.hasOwnProperty(attrs.k)) {
+              that._attrs[attrs.k] = attrs.v;            }
         }
     };
 
