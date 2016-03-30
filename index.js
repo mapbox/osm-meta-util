@@ -63,7 +63,7 @@ MetaUtil.prototype.run = function() {
     }
 
     var parserEnd = function(name, attrs) {
-        if (name === 'node' || name === 'way') {
+        if (name === 'node' || name === 'way' || name === 'relation') {
             var push = true;
             if (that.start_timestamp && that.start_timestamp > that._attrs.timestamp) push = false;
             if (that.end_timestamp && that.end_timestamp < that._attrs.timestamp) push = false;
@@ -84,16 +84,12 @@ MetaUtil.prototype.run = function() {
                 that._action = name;
             }
         }
-        if (name === 'node') { //just managing nodes for now
+        if (name === 'node' || name === 'way' || name === 'relation') { //just managing nodes for now
             that._attrs = attrs;
             that._attrs['action'] = that._action;
-            that._attrs['type'] = 'node';
+            that._attrs['type'] = name;
         }
-        if (name === 'way') {
-            that._attrs = attrs;
-            that._attrs['actions'] = that._action;
-            that._attrs['type'] = 'way';
-        }
+
         if (name === 'tag' && that._attrs) {
             //FIX so that osm properties in namespace
             if (! that._attrs.hasOwnProperty(attrs.k)) {
